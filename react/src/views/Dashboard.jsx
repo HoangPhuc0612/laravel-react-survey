@@ -107,7 +107,7 @@ export default function Dashboard() {
                     Edit Survey
                   </TButton>
 
-                  <TButton link>
+                  <TButton to={`/survey/answers/${data.latestSurvey.id}`} link>
                     <EyeIcon className="w-5 h-5 mr-2" />
                     View Answers
                   </TButton>
@@ -129,7 +129,7 @@ export default function Dashboard() {
               <div className="text-left">
                 {data.latestAnswers.map((answer) => (
                   <a
-                    href="#"
+                    href={`/survey/answer/${answer.id}`}
                     key={answer.id}
                     className="block p-2 hover:bg-gray-100/90"
                   >

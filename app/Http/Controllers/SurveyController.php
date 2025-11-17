@@ -7,6 +7,8 @@ use App\Http\Requests\StoreSurveyAnswerRequest;
 use App\Http\Requests\SurveyStoreRequest;
 use App\Http\Requests\SurveyUpdateRequest;
 use App\Http\Resources\SurveyResource;
+use App\Http\Resources\SurveyAnswerResource;
+use App\Http\Resources\SurveyQuestionAnswerResource;
 use App\Models\Survey;
 use App\Models\SurveyAnswer;
 use App\Models\SurveyQuestion;
@@ -120,14 +122,79 @@ class SurveyController extends Controller
         return response('',204);
     }
 
+    public function getSurveyAnswers(Survey $survey,Request $request){
+        $user = $request->user();
+        if($user->id!=$survey->user_id){
+            return abort(403,'Unauthorized action');
+        }                
+        $answers = SurveyQuestion::where('survey_id', $survey->id)
+        ->with(['answers'])
+        ->get()
+        ->map(function ($q) {
+            $counts = [];
+            foreach ($q->answers as $ans) {
+                $decoded = json_decode($ans->answer, true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $item) {
+                        $counts[$item] = ($counts[$item] ?? 0) + 1;
+                    }
+                } 
+                else {
+                    $value = $decoded ?? $ans->answer;  
+                    $counts[$value] = ($counts[$value] ?? 0) + 1;
+                }
+            }
+            $formatted = collect($counts)->map(function ($count, $answer) {
+                return [
+                    'answer' => $answer,
+                    'count' => $count,
+                ];
+            })->values();
+            return [
+                'id' => $q->id,
+                'question' => $q->question,
+                'type' => $q->type,
+                'answers' => $formatted,
+            ];
+        });
+        return $answers;
+    }
+
+    public function getSurveyAnswer(SurveyAnswer $surveyAnswer,Request $request){
+        $user = $request->user();
+        if($user->id!=$surveyAnswer->survey->user_id){
+            return abort(403,'Unauthorized action');
+        }
+        $surveyAnswerId = $surveyAnswer->id;
+
+        $surveyAnswer = SurveyAnswer::where('id', $surveyAnswerId)
+            ->with([
+                'survey.questions.answers' => function ($q) use ($surveyAnswerId) {
+                    $q->where('survey_answer_id', $surveyAnswerId);
+                }
+            ])
+            ->first();
+        if ($surveyAnswer) {
+            $surveyAnswer->survey->questions->each(function ($question) {
+                $question->answers->each(function ($answer) {
+                    $decoded = json_decode($answer->answer, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $answer->answer = $decoded;
+                    }
+                });
+                $decoded = json_decode($question->data, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $question->data = $decoded;
+                }
+            });
+        }
+        return ["surveyAnswer" => $surveyAnswer];
+    }
+
     private function saveImage($image){
         if (preg_match('/^data:image\/(\w+);base64,/', $image, $type)) {
-            // Take out the base64 encoded text without mime type
             $image = substr($image, strpos($image, ',') + 1);
-            // Get file extension
-            $type = strtolower($type[1]); // jpg, png, gif
-
-            // Check if file is an image
+            $type = strtolower($type[1]);
             if (!in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
                 throw new \Exception('invalid image type');
             }
@@ -156,10 +223,7 @@ class SurveyController extends Controller
     private function saveFile($base64String)
     {
         if (preg_match('/^data:([\w\/\-\.+]+);base64,/', $base64String, $matches)) {
-            // Lấy đúng MIME type (nhóm [1], không phải [2])
             $mimeType = $matches[1];
-
-            // Lấy phần dữ liệu sau dấu phẩy
             $base64String = substr($base64String, strpos($base64String, ',') + 1);
             $base64String = str_replace(' ', '+', $base64String);
 
@@ -168,8 +232,6 @@ class SurveyController extends Controller
             if ($decodedFile === false) {
                 throw new \Exception('Không thể giải mã base64');
             }
-
-            // Map MIME type -> phần mở rộng file
             $mimeMap = [
                 'image/jpeg' => 'jpg',
                 'image/png' => 'png',
@@ -186,22 +248,14 @@ class SurveyController extends Controller
                 'application/x-rar-compressed' => 'rar',
                 'application/json' => 'json',
             ];
-
-            // Nếu không xác định được mime -> dùng phần mở rộng từ mime string (sau dấu '/')
             $extension = $mimeMap[$mimeType] ?? explode('/', $mimeType)[1] ?? 'bin';
-
-            // Tạo đường dẫn
             $dir = 'files/';
             $fileName = Str::random(20) . '.' . $extension;
             $absolutePath = public_path($dir);
             $relativePath = $dir . $fileName;
-
-            // Tạo thư mục nếu chưa có
             if (!File::exists($absolutePath)) {
                 File::makeDirectory($absolutePath, 0755, true);
             }
-
-            // Lưu file
             file_put_contents($absolutePath . '/' . $fileName, $decodedFile);
 
             return $relativePath;

@@ -1,5 +1,6 @@
 import {
   ArrowTopRightOnSquareIcon,
+  EyeIcon,
   PencilIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
@@ -22,6 +23,10 @@ export default function SurveyListItem({ survey, onDeleteClick }) {
         <TButton to={`/surveys/${survey.id}`}>
           <PencilIcon className="w-5 h-5 mr-2"></PencilIcon>
           Edit
+        </TButton>
+        <TButton to={`/survey/answers/${survey.id}`}>
+          <EyeIcon className="w-5 h-5 mr-2" />
+          View Answers
         </TButton>
         <div className="flex items-center">
           <TButton href={`/survey/public/${survey.slug}`} circle link>

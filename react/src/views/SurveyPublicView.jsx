@@ -12,6 +12,7 @@ export default function SurveyPublicView() {
   });
   const [loading, setLoading] = useState(false);
   const { slug } = useParams();
+
   useEffect(() => {
     setLoading(true);
     axiosClient

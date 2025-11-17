@@ -1,4 +1,9 @@
-import { LinkIcon, PhotoIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  EyeIcon,
+  LinkIcon,
+  PhotoIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import PageComponent from "../components/PageComponent";
 import SurveyQuestions from "../components/SurveyQuestions";
 import { useEffect, useState } from "react";
@@ -107,10 +112,16 @@ export default function SurveyView() {
       buttons={
         <div className="flex gap-2">
           {id && (
-            <TButton color="green" href={`/survey/public/${survey.slug}`}>
-              <LinkIcon className="h-6 w-6 mr-2"></LinkIcon>
-              Public Link
-            </TButton>
+            <>
+              <TButton color="green" href={`/survey/public/${survey.slug}`}>
+                <LinkIcon className="h-6 w-6 mr-2"></LinkIcon>
+                Public Link
+              </TButton>
+              <TButton to={`/survey/answers/${survey.id}`}>
+                <EyeIcon className="w-5 h-5 mr-2" />
+                View Answers
+              </TButton>
+            </>
           )}
           <TButton color="red" onClick={() => onDeleteClick(id)}>
             <TrashIcon className="h-6 w-6 mr-2"></TrashIcon>
